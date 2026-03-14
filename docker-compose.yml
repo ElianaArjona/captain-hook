@@ -1,0 +1,117 @@
+version: '3.8'
+
+x-airflow-common: &airflow-common
+  build: .
+  image: captain-hook-airflow:latest
+  environment: &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__CORE__FERNET_KEY: 'ZmDfcTF7_60GrrY167zsiPd67pEvs0aGOv2oasOM1Pg='
+    AIRFLOW__CORE__SECRET_KEY: 'captain-hook-secret-key-change-in-prod'
+    AIRFLOW__API_AUTH__JWT_SECRET: 'captain-hook-jwt-secret-change-in-prod'
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'false'
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    AIRFLOW__API__EXPOSE_CONFIG: 'true'
+    AIRFLOW__WEBSERVER__BASE_URL: 'http://localhost:8080'
+    AIRFLOW__API_SERVER__BASE_URL: 'http://localhost:8080'
+    # Internal URL used by LocalExecutor to reach the Task Execution API (/execution/)
+    # Must point to the api-server container, not localhost (which is the scheduler container)
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-api-server:8080/execution/'
+    # Airflow API credentials (used by callbacks and the report agent)
+    AIRFLOW_API_URL: 'http://airflow-api-server:8080'
+    AIRFLOW_USERNAME: ${AIRFLOW_USERNAME:-admin}
+    AIRFLOW_PASSWORD: ${AIRFLOW_PASSWORD:-admin}
+    # Claude API
+    ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+    # Report settings
+    REPORTS_DIR: '/opt/airflow/reports'
+    REPORT_LOOKBACK_HOURS: '1'
+    # Airflow 3.0 Simple Auth Manager — creates the admin user
+    AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: 'admin:admin'
+    AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: '/opt/airflow/airflow_passwords.json'
+  volumes:
+    - ./plugins:/opt/airflow/plugins
+    - ./dags:/opt/airflow/dags
+    - ./agent:/opt/airflow/agent
+    - ./reports:/opt/airflow/reports
+    - ./airflow_passwords.json:/opt/airflow/airflow_passwords.json
+    - airflow-logs:/opt/airflow/logs
+  user: "${AIRFLOW_UID:-50000}:0"
+  depends_on: &airflow-common-depends-on
+    postgres:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres-db-volume:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    restart: always
+
+  airflow-api-server:
+    <<: *airflow-common
+    command: api-server --workers 1
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v2/monitor/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-dag-processor:
+    <<: *airflow-common
+    command: dag-processor
+    restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-triggerer:
+    <<: *airflow-common
+    command: triggerer
+    restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-init:
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - airflow db migrate
+    environment:
+      <<: *airflow-common-env
+    user: "0:0"
+    restart: on-failure
+
+volumes:
+  postgres-db-volume:
+  airflow-logs:

@@ -1,0 +1,9 @@
+# Requirements for the report agent
+# These are also installed inside the Airflow containers via _PIP_ADDITIONAL_REQUIREMENTS
+
+# Claude API client with MCP helpers (requires Python >= 3.10)
+anthropic[mcp]>=0.40.0
+
+# astro-airflow-mcp provides the `astro-airflow-mcp` CLI entry point
+# used as the MCP stdio server subprocess
+astro-airflow-mcp

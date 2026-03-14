@@ -1,0 +1,10 @@
+[project]
+name = "captain-hook"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "anthropic[mcp]>=0.40.0",
+    "astro-airflow-mcp>=0.5.1",
+]
