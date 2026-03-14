@@ -28,13 +28,13 @@ x-airflow-common: &airflow-common
     REPORT_LOOKBACK_HOURS: '1'
     # Airflow 3.0 Simple Auth Manager — creates the admin user
     AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: 'admin:admin'
-    AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: '/opt/airflow/airflow_passwords.json'
+    AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: '/opt/airflow/airflow_password.json'
   volumes:
     - ./plugins:/opt/airflow/plugins
     - ./dags:/opt/airflow/dags
     - ./agent:/opt/airflow/agent
     - ./reports:/opt/airflow/reports
-    - ./airflow_passwords.json:/opt/airflow/airflow_passwords.json
+    - ./airflow_password.json:/opt/airflow/airflow_password.json
     - airflow-logs:/opt/airflow/logs
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on: &airflow-common-depends-on
