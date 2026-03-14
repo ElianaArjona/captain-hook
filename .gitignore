@@ -209,3 +209,7 @@ __marimo__/
 
 # Reports
 reports/*
+
+# Credentials — never commit these
+airflow_passwords.json
+.env
