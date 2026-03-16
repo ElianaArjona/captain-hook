@@ -105,7 +105,10 @@ async def _get_airflow_token() -> str:
 async def _generate_report(triggered_by: str) -> str:
     """Connect to MCP over HTTP, run the Claude agent, return the markdown report."""
 
+    # Get JWT token for authenticating against the Airflow API (used by MCP tools)
     token = await _get_airflow_token()
+
+    # MCP URL found at /mcp/v1/ here https://github.com/astronomer/agents/blob/main/astro-airflow-mcp/src/astro_airflow_mcp/plugin.py#L40-L44
     mcp_url = f"{AIRFLOW_API_URL}/mcp/v1/"
 
     async with streamablehttp_client(
